@@ -5,6 +5,23 @@
     <meta charset="utf-8" />
     <title>Chatroom</title>
     <style>
+        html ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+            margin-left: -8px;
+        }
+
+        html ::-webkit-scrollbar-thumb {
+            border-radius: 4px;
+            background: #949494;
+        }
+
+        html ::-webkit-scrollbar-track {
+            border-radius: 4px;
+            background: rgb(33, 32, 75, 0);
+            margin: 0;
+        }
+
         p {
             margin: 0;
             padding: 0;
@@ -28,88 +45,136 @@
             width: 50%;
             padding: 50px;
             display: flex;
+            box-shadow: 0 0 10px 0 gray;
         }
 
-        #left{
+        #left {
             width: 80%;
+            margin-right: 10px;
         }
 
-        #right{
+        #right {
             width: 20%;
         }
 
         #msg {
-            border: solid 1px black;
-            border-radius: 5px;
+            border: solid 2px black;
+            border-radius: 10px;
             height: 300px;
             padding: 10px;
-            overflow: scroll;
+            overflow-y: scroll;
         }
 
-        button {}
 
-        #input1{
-            
+
+        button {
+            border: none;
+            color: white;
+            background-color: dodgerblue;
+            border-radius: 10px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: rgb(102, 179, 255);
+
+        }
+
+        #input1 {
             width: 70%;
             font-size: large;
+            margin-right: 10px;
+            padding: 10px 5px;
+            border-radius: 10px;
         }
 
-        #sendbtn{
+        #sendbtn {
             width: 30%;
-            font-size: large;
+            font-size: 1.5em;
         }
 
-        #btncontainer{
+        #btncontainer {
             width: 100%;
             display: flex;
+            margin-top: 20px;
+            top: 50px;
         }
     </style>
     <script>
-        const ws = new WebSocket('ws://localhost:3032');
+        "use strict";
 
         let currentName = 'tadokoro';
 
-        ws.onopen = (e) => {
-            console.log('ws start')
-            ws.send('こんにちは！')
-        };
+        let ws;
 
-        ws.onmessage = (e) => {
-            console.log(e.data);
-            const msgdiv = document.querySelector('#msg');
-            msgdiv.innerHTML += getmsgDiv(JSON.parse(e.data));
-        };
+        const initWS = (port = 3032) => {
 
-        ws.onclose = (e) => {
-            console.log('ws close')
-        };
+            ws = new WebSocket('ws://localhost:' + port);
+            ws.onopen = (e) => {
+                console.log('ws start')
+                ws.send(JSON.stringify({
+                type: 'hello',
+                data: {
+                    name: document.querySelector('#input2').value
+                }
+            }))
+            };
 
-        ws.onerror = (e) => {
+            ws.onmessage = (e) => {
+                console.log(e.data);
+                const recvData = JSON.parse(e.data);
 
+                switch (recvData?.type) {
+                    case "hello":
+                        break;
+                    case "msg":
+                        const msgdiv = document.querySelector('#msg');
+                        msgdiv.innerHTML += getmsgDiv(JSON.parse(e.data).data);
+                        break;
+                    default:
+                        break;
+                }
+
+
+
+            };
+
+            ws.onclose = (e) => {
+                console.log('ws close')
+            };
+
+            ws.onerror = (e) => {
+
+            }
         }
 
         const btn1onclick = () => {
             const input1 = document.querySelector('#input1')
             ws.send(JSON.stringify({
-                text: input1.value,
-                name: document.querySelector('#input2').value,
-                date: new Date().toLocaleString()
+                type: 'msg',
+                data: {
+                    text: input1.value,
+                    name: document.querySelector('#input2').value,
+                    date: new Date().toLocaleString()
+                }
             }))
         }
 
         const btn2onclick = () => {
             currentName = document.querySelector('#input2').value;
+
+            initWS();
+
+
         }
-
-
 
         const getmsgDiv = (msg) => {
             return `
             <div style="margin-bottom: 10px;">
-                        <p><span style="margin-right: 10px;">${msg.name}</span><span style="color: gray;">${msg.date}</span></p>
-                        <p><b>${msg.text}</b></p>
-                    </div>
-            
+                <p><span style="margin-right: 10px;">${msg.name}</span><span style="color: gray;">${msg.date}</span></p>
+                <p><b>${msg.text}</b></p>
+            </div>
             `
         }
 
@@ -127,11 +192,11 @@
                         <p><span style="margin-right: 10px;">az</span><span style="color: gray;">2022-02-22 22:22:22</span></p>
                         <p><b>rua</b></p>
                     </div-->
-                    
+
                 </div>
-                
+
                 <div id="btncontainer">
-    
+
                     <input id="input1" type="text" value="" />
                     <button id="sendbtn" onclick="btn1onclick()">send</button>
                 </div>
