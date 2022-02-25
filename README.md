@@ -1,4 +1,9 @@
 # webChatRoom
-基于websocket的网页聊天室练习
 
-rt
+基于 websocket 的小型网页聊天室
+
+用来 websocket 练手）
+
+目前效果：
+
+![alt screenshot](./image/screenshot.png)

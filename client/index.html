@@ -4,169 +4,62 @@
 <head>
     <meta charset="utf-8" />
     <title>Chatroom</title>
-    <style>
-        html ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-            margin-left: -8px;
-        }
-
-        html ::-webkit-scrollbar-thumb {
-            border-radius: 4px;
-            background: #949494;
-        }
-
-        html ::-webkit-scrollbar-track {
-            border-radius: 4px;
-            background: rgb(33, 32, 75, 0);
-            margin: 0;
-        }
-
-        p {
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            background-color: lightgray;
-        }
-
-        #container {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-        }
-
-        #panel {
-            margin-top: 5%;
-            background-color: white;
-            border-radius: 10px;
-            width: 50%;
-            padding: 50px;
-            display: flex;
-            box-shadow: 0 0 10px 0 gray;
-        }
-
-        #left {
-            width: 80%;
-            margin-right: 10px;
-        }
-
-        #right {
-            width: 20%;
-        }
-
-        #msg {
-            border: solid 2px black;
-            border-radius: 10px;
-            height: 300px;
-            padding: 10px;
-            overflow-y: scroll;
-        }
-
-
-
-        button {
-            border: none;
-            color: white;
-            background-color: dodgerblue;
-            border-radius: 10px;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: rgb(102, 179, 255);
-
-        }
-
-        #input1 {
-            width: 70%;
-            font-size: large;
-            margin-right: 10px;
-            padding: 10px 5px;
-            border-radius: 10px;
-        }
-
-        #sendbtn {
-            width: 30%;
-            font-size: 1.5em;
-        }
-
-        #btncontainer {
-            width: 100%;
-            display: flex;
-            margin-top: 20px;
-            top: 50px;
-        }
-    </style>
+    <link rel="stylesheet" type="text/css" href="./index.css" />
+    <script src="./chatroom.js"></script>
     <script>
         "use strict";
-
-        let currentName = 'tadokoro';
-
-        let ws;
-
-        const initWS = (port = 3032) => {
-
-            ws = new WebSocket('ws://localhost:' + port);
-            ws.onopen = (e) => {
-                console.log('ws start')
-                ws.send(JSON.stringify({
-                type: 'hello',
-                data: {
-                    name: document.querySelector('#input2').value
-                }
-            }))
-            };
-
-            ws.onmessage = (e) => {
-                console.log(e.data);
-                const recvData = JSON.parse(e.data);
-
-                switch (recvData?.type) {
-                    case "hello":
-                        break;
-                    case "msg":
-                        const msgdiv = document.querySelector('#msg');
-                        msgdiv.innerHTML += getmsgDiv(JSON.parse(e.data).data);
-                        break;
-                    default:
-                        break;
-                }
-
-
-
-            };
-
-            ws.onclose = (e) => {
-                console.log('ws close')
-            };
-
-            ws.onerror = (e) => {
-
-            }
-        }
+        const chat = new Chatroom();
 
         const btn1onclick = () => {
             const input1 = document.querySelector('#input1')
-            ws.send(JSON.stringify({
-                type: 'msg',
-                data: {
-                    text: input1.value,
-                    name: document.querySelector('#input2').value,
-                    date: new Date().toLocaleString()
-                }
-            }))
+
+            chat.sendMsg(input1.value);
+            input1.value = '';
+            input1.focus();
         }
 
         const btn2onclick = () => {
-            currentName = document.querySelector('#input2').value;
+            const name = document.querySelector('#input2').value;
+            if (name === '') {
+                alert('请输入一个昵称')
+            } else {
+                chat.setUsername(name)
 
-            initWS();
+                const msgdiv = document.querySelector("#msg");
+                const userdiv = document.querySelector("#userlist");
+                chat.init((data) => {
+                    switch (data?.type) {
+                        case "hello":
+                            break;
+                        case "msg":
+                            msgdiv.innerHTML += getmsgDivNew(data?.data, data?.data?.name === chat.currentUsername);
+                            break;
+                        case "change":
+                            msgdiv.innerHTML += getEnterLeaveDiv(data?.data);
+                            break;
+                        case "userlist":
+                            userdiv.innerHTML = getuserlistItemDiv(data?.data?.users)
+                            break;
+                        default:
+                            break;
+                    }
+                    msgdiv.scrollTop = msgdiv.scrollHeight;
+                }, () => {
+                    msgdiv.innerHTML += getserverstatusDiv();
+                });
+            }
+        }
 
-
+        const getuserlistItemDiv = (users) => {
+            return users.map(user => {
+                return `
+                <li style=" display: flex; align-items: center;">
+                            <div
+                                style="border-radius: 10px; width: 10px; height: 10px; background-color:${user?.status === 'on' ? '#4fdd54' : 'rgb(138, 138, 138)'}; box-shadow: 0 0 3px 0 gray; margin-right: 5px;">
+                            </div><span style="color: ${user?.status === 'on' ? 'black' : 'rgb(138, 138, 138)'} ;">${user?.name}</span>
+                        </li>
+                `;
+            }).join('');
         }
 
         const getmsgDiv = (msg) => {
@@ -176,6 +69,76 @@
                 <p><b>${msg.text}</b></p>
             </div>
             `
+        }
+
+        const getserverstatusDiv = () => {
+            return `
+            <div style="margin-bottom: 10px; width: 100%; display: flex; justify-content: center;">
+                        <span
+                            style="width: fit-content; font-size: 0.8em; background-color: gray; color: white; border-radius: 10px; padding: 0 10px;">
+                            ${'服务器已关闭'}
+                            </span>
+                    </div>
+            `
+        }
+
+        const getEnterLeaveDiv = (data) => {
+            let text = '';
+            if (data?.name === chat.currentUsername) {
+                switch (data.status) {
+                    case 'enter':
+                        text = `以 ${data?.name} 的身份加入聊天`
+                        break;
+                    case 'leave':
+                        text = `你已离开聊天`
+                        break;
+                    default: break;
+                }
+            } else {
+                switch (data.status) {
+                    case 'enter':
+                        text = `${data.name} 进来了`
+                        break;
+                    case 'leave':
+                        text = `${data.name} 离开了`
+                        break;
+                    default: break;
+                }
+            }
+            return `
+            <div style="margin-bottom: 10px; width: 100%; display: flex; justify-content: center;">
+                        <span
+                            style="width: fit-content; font-size: 0.8em; background-color: gray; color: white; border-radius: 10px; padding: 0 10px;">
+                            ${text}
+                            </span>
+                    </div>
+            `
+        }
+
+        const getmsgDivNew = (msg, isSelf = false) => {
+            return `
+                    <div style="margin-bottom: 10px; width: 100%; display: flex; flex-direction: column;">
+                        <div style="align-self: ${isSelf ? 'end' : 'start'}; width: fit-content; max-width: 60%; display: flex; flex-direction: column;">
+                            <div style="margin-bottom: 3px; width: 100%; display: flex; gap: 10px; ">
+                                ${isSelf ?
+                    `<span style="color: gray; font-size: 0.5em;">${msg.date}</span>
+                                    <span style="color: rgb(0, 0, 0); font-size: 0.8em;">${msg.name}</span>
+                                `
+                    : `<span style="color: rgb(0, 0, 0); font-size: 0.8em;">${msg.name}</span>
+                                <span style="color: gray; font-size: 0.5em;">${msg.date}</span>`
+
+                }
+                                
+    
+                            </div>
+                            <div
+                                style="max-width: 100%; overflow-wrap: break-word; align-self: ${isSelf ? 'end' : 'start'};width: fit-content;  background-color: ${isSelf ? '#2196f3' : 'white'}; color: ${isSelf ? 'white' : 'black'}; border-radius: 10px; padding: 5px 10px; box-shadow: 0 0 3px 0 gray;">
+
+                                <span style="font-size: 1.1em;">${msg.text}</span>
+                            </div>
+                        </div>
+                    </div>
+            `;
         }
 
     </script>
@@ -192,19 +155,75 @@
                         <p><span style="margin-right: 10px;">az</span><span style="color: gray;">2022-02-22 22:22:22</span></p>
                         <p><b>rua</b></p>
                     </div-->
+                    <!--div style="margin-bottom: 10px; width: 100%; display: flex; justify-content: center;">
+                        <span
+                            style="width: fit-content; font-size: 0.8em background-color: gray; color: white; border-radius: 10px; padding: 0 10px;">123123
+                            进来了</span>
+                    </div>
+                    <div style="margin-bottom: 10px; width: 100%; display: flex; flex-direction: column;">
+                        <div
+                            style="align-self: start; width: fit-content; max-width: 60%; display: flex; flex-direction: column;">
+                            <div style="margin-bottom: 3px; width: 100%; display: flex; gap: 10px; ">
+                                <span style="color: rgb(0, 0, 0); font-size: 0.8em;">田所浩二</span><span
+                                    style="color: gray; font-size: 0.5em;">2022-02-02 22:22:22</span>
+
+                            </div>
+                            <div
+                                style="align-self: start;width: fit-content;  background-color: white; color: black; border-radius: 10px; padding: 5px 10px; box-shadow: 0 0 3px 0 gray;">
+
+                                <span style="font-size: 1.1em;">message message message message message message message
+                                    message </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 10px; width: 100%; display: flex;  flex-direction: column;">
+                        <div
+                            style="align-self: end; width: fit-content; max-width: 60%; display: flex; flex-direction: column;">
+                            <div style="margin-bottom: 3px; width: 100%; display: flex; gap: 10px; ">
+                                <span style="color: gray; font-size: 0.5em;">2022-02-02 22:22:22</span>
+                                <span style="color: rgb(0, 0, 0); font-size: 0.8em;">田所浩二</span>
+
+                            </div>
+                            <div
+                                style="align-self: end; width: fit-content; background-color: #2196f3; color: rgb(255, 255, 255); border-radius: 10px; padding: 5px 10px; box-shadow: 0 0 3px 0 gray;">
+
+                                <span style="font-size: 1.1em;">喵 </span>
+                            </div>
+                        </div>
+                    </div-->
 
                 </div>
 
                 <div id="btncontainer">
 
                     <input id="input1" type="text" value="" />
-                    <button id="sendbtn" onclick="btn1onclick()">send</button>
+                    <button id="sendbtn" onclick="btn1onclick()">发送</button>
                 </div>
             </div>
             <div id="right">
+                <div id="nameinputDiv">
 
-                <input id="input2" type="text" value="tadokoro" />
-                <button id="namebtn" onclick="btn2onclick()">set name</button>
+                    <label style="display: flex; height: fit-content; gap: 5px;"><span
+                            style="min-width: fit-content; font-size: 0.8em;"></span> <input id="input2" type="text"
+                            value="" placeholder="昵称 (必需)" /></label>
+                    <button id="namebtn" onclick="btn2onclick()">连接</button>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <p style="font-size: 0.8em; color: gray;">在线用户</p>
+                    <ul id="userlist" style="list-style-type: none; padding-left: 0; margin: 0; ">
+                        <!--li style=" display: flex; align-items: center;">
+                            <div
+                                style="border-radius: 10px; width: 10px; height: 10px; background-color: rgb(6, 181, 6); box-shadow: 0 0 3px 0 gray; margin-right: 5px;">
+                            </div><span>asdasdasd</span>
+                        </li>
+                        <li style=" display: flex; align-items: center;">
+                            <div
+                                style="border-radius: 10px; width: 10px; height: 10px; background-color: rgb(154, 154, 154); box-shadow: 0 0 3px 0 gray; margin-right: 5px;">
+                            </div><span style="color: rgb(138, 138, 138);">asdasdasd</span>
+                        </li-->
+                    </ul>
+                </div>
 
             </div>
         </div>
