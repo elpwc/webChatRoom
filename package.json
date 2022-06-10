@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "nodejs-websocket": "^1.7.2"
+  },
+  "scripts": {
+    "start-server": "cd server&node index.js"
   }
 }

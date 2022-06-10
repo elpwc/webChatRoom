@@ -7,3 +7,9 @@
 目前效果：
 
 ![alt screenshot](./image/screenshot.png)
+
+## 启用
+
+```
+npm run start-server
+```
